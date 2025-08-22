@@ -1,7 +1,7 @@
-import express from "express";
-import cors from "cors";
-import bodyParser from "body-parser";
-import fetch from "node-fetch"; // ✅ important fix
+const express = require("express");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const fetch = require("node-fetch");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -44,20 +44,19 @@ app.post("/ask", async (req, res) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText);
+      const err = await response.text();
+      throw new Error(err);
     }
 
     const data = await response.json();
     const answer = data.choices?.[0]?.message?.content?.trim() || "";
-
     res.status(200).json({ ok: true, answer, mode });
   } catch (err) {
     console.error("GPT error:", err.message);
-    res.status(500).json({ error: "Failed to call OpenAI", details: err.message });
+    res.status(500).json({ error: "GPT error", details: err.message });
   }
 });
 
 app.listen(port, () => {
-  console.log(`empowermint GPT proxy running on port ${port}`);
+  console.log(`empowermint GPT proxy is running on port ${port}`);
 });
