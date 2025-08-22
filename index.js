@@ -1,9 +1,11 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
+import fetch from "node-fetch"; // ✅ important fix
 
 const app = express();
 const port = process.env.PORT || 3000;
+
 app.use(cors());
 app.use(bodyParser.json());
 
@@ -42,8 +44,8 @@ app.post("/ask", async (req, res) => {
     });
 
     if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(errText);
+      const errorText = await response.text();
+      throw new Error(errorText);
     }
 
     const data = await response.json();
