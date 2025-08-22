@@ -1,19 +1,24 @@
-const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const fetch = require("node-fetch");
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import fetch from "node-fetch";
 
+dotenv.config();
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080;
 
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
+
+app.get("/", (req, res) => {
+  res.send("empowermint GPT proxy is live.");
+});
 
 app.post("/ask", async (req, res) => {
-  const { question, mode = "tldr", systemPrompt } = req.body;
+  const { question, mode } = req.body;
 
-  if (!question) {
-    return res.status(400).json({ error: "Missing question" });
+  if (!question || !mode) {
+    return res.status(400).json({ error: "Missing question or mode" });
   }
 
   try {
@@ -29,27 +34,26 @@ app.post("/ask", async (req, res) => {
           {
             role: "system",
             content:
-              systemPrompt ||
-              (mode === "exam"
-                ? "You are a strict but supportive exam coach for high school learners in South Africa. Structure answers step-by-step, show workings, and include marking‑style cues."
-                : "You are a concise explainer. Give the clearest possible answer in plain English with short bullets and examples."),
+              mode === "exam"
+                ? "You are a motivational, supportive South African high school study coach. Answer step-by-step with clarity, structure, and confidence. Use exam-style formatting with helpful tone."
+                : "You are an uplifting tutor helping learners understand things clearly. Summarise answers gently and encourage learners to ask follow-ups.",
           },
           {
             role: "user",
             content: question,
           },
         ],
-        temperature: 0.4,
+        temperature: 0.7,
       }),
     });
 
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(err);
+    const data = await response.json();
+    const answer = data?.choices?.[0]?.message?.content;
+
+    if (!answer) {
+      throw new Error("No valid response from OpenAI");
     }
 
-    const data = await response.json();
-    const answer = data.choices?.[0]?.message?.content?.trim() || "";
     res.status(200).json({ ok: true, answer, mode });
   } catch (err) {
     console.error("GPT error:", err.message);
