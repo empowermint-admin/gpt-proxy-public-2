@@ -1,19 +1,19 @@
-# Use Node.js LTS image (non-alpine to avoid missing packages)
+# Use Node.js LTS with full module support
 FROM node:18
 
-# Create app directory
+# Set working directory
 WORKDIR /app
 
-# Install app dependencies
+# Install dependencies
 COPY package*.json ./
 RUN npm install
 
-# Bundle app source
+# Copy rest of app
 COPY . .
 
 # Railway expects port 3000
 ENV PORT=3000
 EXPOSE 3000
 
-# Start the app using ES Module support
+# Run app using ES module
 CMD [ "node", "index.js" ]
