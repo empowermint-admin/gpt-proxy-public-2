@@ -1,55 +1,54 @@
-import express from 'express';
-import cors from 'cors';
-import bodyParser from 'body-parser';
-import { config } from 'dotenv';
-import { OpenAI } from 'openai';
-
-config();
+import express from "express";
+import cors from "cors";
+import bodyParser from "body-parser";
+import { OpenAI } from "openai";
 
 const app = express();
-const port = process.env.PORT; // Railway injects this
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const port = process.env.PORT || 3000;
 
-// ✅ Proper CORS setup (optional: tighten this later)
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
-  })
-);
-
+app.use(cors());
 app.use(bodyParser.json());
 
-app.post('/ask', async (req, res) => {
+// ✅ Explicitly pass the API key from Railway’s environment
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+app.post("/ask", async (req, res) => {
   try {
-    const { prompt, mode = "exam", persona = "eb", system } = req.body;
+    const { question, mode = "tldr", systemPrompt } = req.body;
 
-    const systemPrompt = system || `You are ${persona}, a friendly and clear South African study coach. Use plain language, warmth, examples, and structure to help learners understand. Format your answers clearly.`;
+    if (!question) {
+      return res.status(400).json({ error: "Missing question" });
+    }
 
-    const modeInstruction =
-      mode === "tldr"
-        ? `Summarise clearly in 3–5 bullet points. Avoid too much detail. Use a friendly tone.`
-        : `Explain using paragraph structure, numbered steps if helpful, and give short relatable examples. Use clear headers and recap the key idea at the end.`;
-
-    const fullPrompt = `${modeInstruction}\n\n${prompt}`;
-
-    const chat = await openai.chat.completions.create({
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: fullPrompt }
+        {
+          role: "system",
+          content:
+            systemPrompt ||
+            (mode === "exam"
+              ? "You are a strict but supportive exam coach for high school learners in South Africa. Structure answers step-by-step, show workings, and include marking‑style cues."
+              : "You are a concise explainer. Give the clearest possible answer in plain English with short bullets and examples."),
+        },
+        {
+          role: "user",
+          content: question,
+        },
       ],
-      model: "gpt-4o"
+      temperature: 0.4,
     });
 
-    res.json({ answer: chat.choices[0].message.content });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Something went wrong' });
+    const answer = response.choices[0]?.message?.content?.trim() || "";
+    res.status(200).json({ ok: true, answer, mode });
+  } catch (error) {
+    console.error("GPT Error:", error);
+    res.status(500).json({ error: "GPT failed", details: error.message });
   }
 });
 
-// ✅ Must listen on 0.0.0.0 for Railway or Fly.io
-app.listen(port, "0.0.0.0", () => {
-  console.log(`empowermint GPT proxy running on port ${port}`);
+app.listen(port, () => {
+  console.log(`empowermint GPT proxy listening on port ${port}`);
 });
